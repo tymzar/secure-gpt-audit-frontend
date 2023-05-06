@@ -1,0 +1,107 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+paths:
+  /tagger/find-sanitizable:
+    post:
+      tags:
+      - tagger-controller
+      operationId: findSanitizable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Segment'
+  /audit/add-log:
+    post:
+      tags:
+      - audit-controller
+      operationId: addLogToDatabase
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatQuery'
+        required: true
+      responses:
+        "200":
+          description: OK
+  /audit/get-logs:
+    get:
+      tags:
+      - audit-controller
+      operationId: fetchDatabase
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatQuery'
+  /audit/get-logs-between:
+    get:
+      tags:
+      - audit-controller
+      operationId: fetchDatabaseSubset
+      parameters:
+      - name: from
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatQuery'
+components:
+  schemas:
+    Segment:
+      type: object
+      properties:
+        segmentIndex:
+          type: integer
+          format: int32
+        segmentContent:
+          type: string
+        segmentType:
+          type: string
+    ChatQuery:
+      type: object
+      properties:
+        timeStamp:
+          type: string
+          format: date-time
+        name:
+          type: string
+        queryContent:
+          type: string
+        encryptedQueryContent:
+          type: string
