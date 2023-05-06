@@ -2,13 +2,9 @@ import React from "react";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import Link from "../src/Link";
-import ProTip from "../src/ProTip";
-import Copyright from "../src/Copyright";
 import {
   Button,
   CircularProgress,
-  Icon,
   LinearProgress,
   Modal,
   Paper,
@@ -23,13 +19,8 @@ import {
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import { Error, Refresh, Title } from "@mui/icons-material";
-import { UUID, randomUUID } from "crypto";
-import {
-  getAuditControllerMSW,
-  getFetchDatabaseMock,
-} from "../src/api/audit-controller/audit-controller.msw";
+
 import { fetchDatabase } from "../src/api/audit-controller/audit-controller";
-import { AxiosError } from "axios";
 import { AppUser, ChatQuery } from "../src/api/models";
 
 let users: AppUser[];
