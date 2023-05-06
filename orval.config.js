@@ -4,7 +4,6 @@ module.exports = {
       mode: "tags-split",
       target: "./src/api/services.ts",
       schemas: "./src/api/models",
-      client: "react-query",
       mock: true,
       override: {
         mutator: {

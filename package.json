@@ -17,6 +17,7 @@
     "@faker-js/faker": "^7.6.0",
     "@mui/icons-material": "latest",
     "@mui/material": "latest",
+    "axios": "^1.4.0",
     "msw": "^1.2.1",
     "next": "latest",
     "react": "latest",

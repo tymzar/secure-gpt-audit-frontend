@@ -1,9 +1,9 @@
 // custom-instance.ts
 
-import Axios, { AxiosRequestConfig } from 'axios';
+import Axios, { AxiosRequestConfig } from "axios";
 
 export const AXIOS_INSTANCE = Axios.create({
-  baseURL: 'http://localhost:8080/',
+  baseURL: "http://homeserver.barpec12.pl:8080/",
 }); // use your own URL here or environment variable
 
 // add a second `options` argument here if you want to pass extra options to each generated query
@@ -20,7 +20,7 @@ export const customInstance = <T>(
 
   // @ts-ignore
   promise.cancel = () => {
-    source.cancel('Query was cancelled');
+    source.cancel("Query was cancelled");
   };
 
   return promise;

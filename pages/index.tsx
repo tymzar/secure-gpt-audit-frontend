@@ -9,6 +9,7 @@ import {
   Button,
   CircularProgress,
   Icon,
+  LinearProgress,
   Modal,
   Paper,
   Table,
@@ -21,100 +22,18 @@ import {
 } from "@mui/material";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
-import { Error, Title } from "@mui/icons-material";
+import { Error, Refresh, Title } from "@mui/icons-material";
 import { UUID, randomUUID } from "crypto";
+import {
+  getAuditControllerMSW,
+  getFetchDatabaseMock,
+} from "../src/api/audit-controller/audit-controller.msw";
+import { fetchDatabase } from "../src/api/audit-controller/audit-controller";
+import { AxiosError } from "axios";
+import { AppUser, ChatQuery } from "../src/api/models";
 
-const employees = [
-  {
-    id: "af5bf4ae-1aee-4a66-afdc-1c2ed41478ed",
-    firstName: "First 1",
-    lastName: "Last",
-  },
-  {
-    id: "ee575a71-0325-43f6-bc1b-4ab08d87fa99",
-    firstName: "First 2",
-    lastName: "Last",
-  },
-  {
-    id: "08685188-a052-4a54-b742-dca07f271fc3",
-    firstName: "First 3",
-    lastName: "Last",
-  },
-  {
-    id: "d90bed01-23d5-441b-bfd4-62c88f997f72",
-    firstName: "First 4",
-    lastName: "Last",
-  },
-  {
-    id: "3539aaee-1f2f-43ba-b784-477f750e7e8d",
-    firstName: "First 5",
-    lastName: "Last",
-  },
-  {
-    id: "725f43d8-2772-4d7a-b02e-20c5e455bd4c",
-    firstName: "First 6",
-    lastName: "Last",
-  },
-];
-
-function createData(
-  id: string,
-  employee: { id: string; firstName: string; lastName: string },
-  date: Date,
-  inquiry: { sanitized: string; original: string }
-) {
-  return { id, employee, date, inquiry };
-}
-
-const data = [
-  createData(
-    "614b8c1e-5d15-49ad-8237-eb5a0e19f629",
-    employees[0],
-    new Date("06-05-2023"),
-    {
-      sanitized: "sanitized",
-      original: "some nice detailed query used with credentials",
-    }
-  ),
-  createData(
-    "bb979cf1-3b35-41ef-b030-0f2fa8493adc",
-    employees[0],
-    new Date("06-05-2023"),
-    {
-      sanitized: "sanitized",
-      original: "org",
-    }
-  ),
-  createData(
-    "2b09281f-0791-4330-99b7-d51bd3b243a7",
-    employees[1],
-    new Date("06-05-2023"),
-    {
-      sanitized: "sanitized",
-      original: "org",
-    }
-  ),
-  createData(
-    "0c6c8a8b-294c-40c1-a15c-f68f45f4e036",
-    employees[4],
-    new Date("06-05-2023"),
-    {
-      sanitized: "sanitized",
-      original: "org",
-    }
-  ),
-  createData(
-    "ba01fa3b-8246-411b-8604-3886e9c64ef6",
-    employees[4],
-    new Date("06-05-2023"),
-    {
-      sanitized: "sanitized",
-      original: "org",
-    }
-  ),
-];
-
-let rows = [...data];
+let users: AppUser[];
+let data: ChatQuery[];
 
 function sleep(delay = 0) {
   return new Promise((resolve) => {
@@ -127,11 +46,39 @@ export default function Home() {
   const [modalOpen, setModalOpen] = React.useState(false);
   const handleOpen = () => setModalOpen(true);
   const handleClose = () => setModalOpen(false);
-  const [options, setOptions] = React.useState<readonly any[]>([]);
-  const [value, setValue] = React.useState<any>();
+  const [rows, setRows] = React.useState<ChatQuery[]>([]);
+  const [options, setOptions] = React.useState<readonly AppUser[]>([]);
+  const [value, setValue] = React.useState<AppUser | null>();
   const loading = acOpen && options.length === 0;
+  const [reload, setReload] = React.useState(true);
 
   const [details, setDetails] = React.useState();
+
+  React.useEffect(() => {
+    if (reload) {
+      setRows([]);
+
+      fetchDatabase().then((response) => {
+        data = response.map((i) => ({
+          ...i,
+          timestamp: new Date(i.timestamp),
+        }));
+
+        setRows([...data]);
+
+        users = Object.values(
+          data
+            .map((i) => i.user)
+            .reduce((acc: any, cur: AppUser) => {
+              acc[cur.id] = cur;
+              return acc;
+            }, {})
+        );
+
+        setReload(false);
+      });
+    }
+  }, [reload]);
 
   React.useEffect(() => {
     let active = true;
@@ -144,7 +91,7 @@ export default function Home() {
       await sleep(0); // For demo purposes.
 
       if (active) {
-        setOptions([...employees]);
+        setOptions([...users]);
       }
     })();
 
@@ -154,11 +101,9 @@ export default function Home() {
   }, [loading]);
 
   React.useEffect(() => {
-    if (value) {
-      rows = data.filter((row) => row.employee.id === value?.id);
-    } else {
-      rows = [...data];
-    }
+    value
+      ? setRows(data.filter((row) => row.user.id === value?.id))
+      : setRows(data ? [...data] : []);
   }, [value]);
 
   React.useEffect(() => {
@@ -176,49 +121,67 @@ export default function Home() {
     <>
       <Container sx={{}}>
         <h1>GPT inquiry audit log</h1>
-        <Autocomplete
-          disablePortal
-          id="combo-box-demo"
-          options={options}
-          sx={{ width: "100%", marginBottom: 2 }}
-          value={value}
-          onChange={(_: unknown, newVal: string) => {
-            setValue(newVal);
+        <Box
+          sx={{
+            display: "flex",
+            gap: "32px",
+            justifyContent: "space-between",
+            marginBottom: 2,
           }}
-          isOptionEqualToValue={(option, value) => option.id === value?.id}
-          getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
-          open={acOpen}
-          onOpen={() => {
-            setAcOpen(true);
-          }}
-          onClose={() => {
-            setAcOpen(false);
-          }}
-          loading={loading}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Search for employees"
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <React.Fragment>
-                    {loading ? (
-                      <CircularProgress color="inherit" size={20} />
-                    ) : null}
-                    {params.InputProps.endAdornment}
-                  </React.Fragment>
-                ),
-              }}
-            />
-          )}
-        />
+        >
+          <Autocomplete
+            disablePortal
+            id="combo-box-demo"
+            options={options}
+            sx={{ width: "100%" }}
+            value={value}
+            onChange={(_: unknown, newVal: AppUser | null) => {
+              setValue(newVal);
+            }}
+            isOptionEqualToValue={(option, value) => option.id === value?.id}
+            getOptionLabel={(option) =>
+              `${option.firstName} ${option.lastName}`
+            }
+            open={acOpen}
+            onOpen={() => {
+              setAcOpen(true);
+            }}
+            onClose={() => {
+              setAcOpen(false);
+            }}
+            loading={loading}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Search for users"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <React.Fragment>
+                      {loading ? (
+                        <CircularProgress color="inherit" size={20} />
+                      ) : null}
+                      {params.InputProps.endAdornment}
+                    </React.Fragment>
+                  ),
+                }}
+              />
+            )}
+          />
+          <Refresh
+            sx={{ cursor: "pointer", margin: "auto" }}
+            fontSize="large"
+            onClick={() => {
+              setReload(true);
+            }}
+          />
+        </Box>
         <TableContainer component={Paper}>
-          {rows.length ? (
+          {rows?.length ? (
             <Table sx={{ minWidth: 650 }} aria-label="simple table">
               <TableHead>
                 <TableRow>
-                  <TableCell>Employee</TableCell>
+                  <TableCell>User</TableCell>
                   <TableCell align="right">Inquiry</TableCell>
                   <TableCell align="right">Date</TableCell>
                 </TableRow>
@@ -230,7 +193,7 @@ export default function Home() {
                     sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
                   >
                     <TableCell component="th" scope="row">
-                      {row.employee.firstName} {row.employee.lastName}
+                      {row.user.firstName} {row.user.lastName}
                     </TableCell>
                     <TableCell
                       align="right"
@@ -239,11 +202,25 @@ export default function Home() {
                         openDetailsModal(row);
                       }}
                     >
-                      <Tooltip title="Click to show original">
-                        <Typography>{row.inquiry.sanitized}</Typography>
-                      </Tooltip>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                          padding: "none",
+                        }}
+                      >
+                        <Tooltip title="Click to show original" sx={{}}>
+                          <Typography>{row.sanitizedQueryContent}</Typography>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
-                    <TableCell align="right">{row.date.toString()}</TableCell>
+                    <TableCell align="right">
+                      {(row.timestamp as Date).getDay()}.
+                      {(row.timestamp as Date).getMonth() + 1}.
+                      {(row.timestamp as Date).getFullYear()}{" "}
+                      {(row.timestamp as Date).getHours()}:
+                      {(row.timestamp as Date).getMinutes()}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -257,8 +234,14 @@ export default function Home() {
                 marginY: 4,
               }}
             >
-              <Typography>No results found.</Typography>
-              <Error />
+              {reload ? (
+                <LinearProgress color="secondary" sx={{ width: "100%" }} />
+              ) : (
+                <>
+                  <Error />
+                  <Typography>No results found.</Typography>
+                </>
+              )}
             </Container>
           )}
         </TableContainer>
@@ -280,7 +263,6 @@ export default function Home() {
         <Box
           sx={{
             position: "relative",
-            width: 400,
             bgcolor: "background.paper",
             borderRadius: 1,
             boxShadow: (theme) => theme.shadows[5],
@@ -290,11 +272,18 @@ export default function Home() {
           <Typography id="server-modal-title" variant="h6" component="h2">
             Original inquiry
           </Typography>
-          <Typography id="server-modal-description" sx={{ pt: 2 }}>
-            {(details as any)?.inquiry.original}
+          <Typography
+            id="server-modal-description"
+            sx={{ pt: 2, maxWidth: "500px", overflow: "auto" }}
+          >
+            {(details as any)?.queryContent}
           </Typography>
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Box
+            sx={{ display: "flex", justifyContent: "flex-end", marginTop: 2 }}
+          >
             <Button
+              color="secondary"
+              variant="text"
               onClick={() => {
                 handleClose();
               }}
