@@ -50,10 +50,12 @@ export default function Home() {
       setRows([]);
 
       fetchDatabase().then((response) => {
-        data = response.map((i) => ({
-          ...i,
-          timestamp: new Date(i.timestamp),
-        }));
+        data = response
+          .map((i) => ({
+            ...i,
+            timestamp: new Date(i.timestamp),
+          }))
+          .reverse();
 
         setRows([...data]);
 
